@@ -151,6 +151,9 @@ BAKE_COLORS = False
 # white, red, green, blue, yellow, cyan, magenta
 COLORS = [0xeeeeee, 0xee0000, 0x00ee00, 0x0000ee, 0xeeee00, 0x00eeee, 0xee00ee]
 
+# default material index (in case there's an unnamed material on OBJ file)
+DEFAULTMTL = 'default%s' % (random.randint(1,1000000000))
+
 # #####################################################
 # Templates
 # #####################################################
@@ -368,12 +371,14 @@ def parse_mtl(fname):
 
             # Material start
             # newmtl identifier
-            if chunks[0] == "newmtl" and len(chunks) == 2:
-                identifier = chunks[1]
-                if not identifier in materials:
-                    materials[identifier] = {}
-            else:
-                continue
+            if chunks[0] == "newmtl":
+                if len(chunks) == 2:
+                    identifier = chunks[1]
+                    if not identifier in materials:
+                        materials[identifier] = {}
+                else:
+                    print "Error processing [%s]: [%s] contains unnamed materials." % (infile, fname)
+                    raise SystemExit
 
             # Diffuse color
             # Kd 1.000 1.000 1.000
@@ -583,14 +588,20 @@ def parse_obj(fname):
                 mtllib = chunks[1]
 
             # Material
-            if chunks[0] == "usemtl" and len(chunks) == 2:
-                material = chunks[1]
-                if not material in materials:
-                    mcurrent = mcounter
-                    materials[material] = mcounter
-                    mcounter += 1
+            if chunks[0] == "usemtl":
+                if len(chunks) == 2:
+                    material = chunks[1]
+                    if not material in materials:
+                        mcurrent = mcounter
+                        materials[material] = mcounter
+                        mcounter += 1
+                    else:
+                        mcurrent = materials[material]
                 else:
-                    mcurrent = materials[material]
+                    mcurrent = mcounter
+                    materials[DEFAULTMTL] = mcounter
+                    mcounter += 1
+                    print "Warning: [%s] contains unnamed materials" % (fname)
 
             # Smooth shading
             if chunks[0] == "s" and len(chunks) == 2:
